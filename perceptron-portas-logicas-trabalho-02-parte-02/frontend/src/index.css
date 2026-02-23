@@ -1,0 +1,27 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0d0d1a;
+  --surface: #12121e;
+  --card:    #1c1c2e;
+  --border:  #2a2a40;
+  --accent:  #00bcbc;
+  --text:    #e0e0f0;
+  --muted:   #888;
+  --font:    'Courier New', Courier, monospace;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 100%;
+}
+
+button { cursor: pointer; font-family: var(--font); }
