@@ -59,13 +59,11 @@ impl Perceptron {
         Self::ativar(net)
     }
 
-    /// Treina o perceptron com a regra de atualização de Rosenblatt.
-    /// Retorna o número de épocas necessárias.
     fn treinar(&mut self, amostras: &Vec<(Vec<f64>, f64)>) -> usize {
         for epoca in 1..=self.config.max_epocas {
             let mut erros = 0;
 
-            for (x, alvo) in amostras {
+            for (amostra_idx, (x, alvo)) in amostras.iter().enumerate() {
                 let saida = self.prever(x);
 
                 if saida != *alvo {
@@ -77,6 +75,17 @@ impl Perceptron {
                     }
                     self.bias += delta;
                 }
+
+                println!(
+                    "    Amostra {:>2} | bias: {:+.4} | pesos (7x7):",
+                    amostra_idx, self.bias
+                );
+                for linha in self.pesos.chunks(7) {
+                    let linha_str: Vec<String> =
+                        linha.iter().map(|p| format!("{:+.4}", p)).collect();
+                    println!("      {}", linha_str.join("  "));
+                }
+                println!();
             }
 
             println!("  Época {:>4} | erros: {}", epoca, erros);
@@ -121,7 +130,7 @@ fn main() {
     let config = ConfigPerceptron {
         num_entradas: 7 * 7,
         taxa_aprendizagem: 0.01,
-        max_epocas: 1000,
+        max_epocas: 100,
         bias_inicial: 0.3256,
     };
 
@@ -131,7 +140,6 @@ fn main() {
     let epocas = p.treinar(&amostras);
     println!("\nConvergiu em {} época(s).\n", epocas);
 
-    // ── Resultados ───────────────────────────────────────────────────────────
     println!("=== Resultados ===");
     for (x, alvo) in &amostras {
         let saida = p.prever(x);
