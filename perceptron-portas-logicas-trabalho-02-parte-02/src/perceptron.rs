@@ -41,8 +41,6 @@ impl Perceptron {
         Self::ativar(net)
     }
 
-    /// Treina o perceptron com a regra de Rosenblatt.
-    /// Retorna o histórico de iterações (uma por época).
     pub fn treinar(&mut self, amostras: &Vec<(Vec<f64>, f64)>) -> Vec<IteracaoTreino> {
         let mut historico = Vec::new();
 

@@ -1,23 +1,23 @@
-mod perceptron;
 mod gates;
+mod perceptron;
 
-use std::io;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState},
-    Terminal,
 };
+use std::io;
 
+use gates::{PortaLogica, amostras_para};
 use perceptron::{ConfigPerceptron, IteracaoTreino, Perceptron};
-use gates::{amostras_para, PortaLogica};
 
 const PORTAS: [PortaLogica; 5] = [
     PortaLogica::AND,
@@ -94,7 +94,6 @@ impl App {
 }
 
 fn main() -> io::Result<()> {
-    // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -104,11 +103,9 @@ fn main() -> io::Result<()> {
     let mut app = App::new();
 
     loop {
-        terminal.draw(|f| {
-            match app.estado {
-                Estado::Menu => draw_menu(f, &app),
-                Estado::Resultados => draw_resultados(f, &mut app),
-            }
+        terminal.draw(|f| match app.estado {
+            Estado::Menu => draw_menu(f, &app),
+            Estado::Resultados => draw_resultados(f, &mut app),
         })?;
 
         if event::poll(std::time::Duration::from_millis(100))? {
@@ -149,7 +146,6 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // Restore terminal
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
@@ -171,16 +167,16 @@ fn draw_menu(f: &mut ratatui::Frame, app: &App) {
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(2),  // título
-            Constraint::Length(1),  // espaço
-            Constraint::Min(5),     // lista de portas
-            Constraint::Length(1),  // espaço
-            Constraint::Length(1),  // rodapé
+            Constraint::Length(2), // título
+            Constraint::Length(1), // espaço
+            Constraint::Min(5),    // lista de portas
+            Constraint::Length(1), // espaço
+            Constraint::Length(1), // rodapé
         ])
         .split(inner);
 
-    let titulo = Paragraph::new("  Selecione uma porta lógica:")
-        .style(Style::default().fg(Color::Yellow));
+    let titulo =
+        Paragraph::new("  Selecione uma porta lógica:").style(Style::default().fg(Color::Yellow));
     f.render_widget(titulo, chunks[0]);
 
     // Lista de portas
@@ -189,14 +185,12 @@ fn draw_menu(f: &mut ratatui::Frame, app: &App) {
         .enumerate()
         .map(|(i, porta)| {
             if i == app.cursor {
-                Line::from(vec![
-                    Span::styled(
-                        format!("  ▶ {}", porta.nome()),
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ])
+                Line::from(vec![Span::styled(
+                    format!("  ▶ {}", porta.nome()),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )])
             } else {
                 Line::from(vec![Span::styled(
                     format!("    {}", porta.nome()),
@@ -217,10 +211,7 @@ fn draw_menu(f: &mut ratatui::Frame, app: &App) {
 fn draw_resultados(f: &mut ratatui::Frame, app: &mut App) {
     let area = f.area();
 
-    let porta_nome = app
-        .porta_selecionada
-        .map(|p| p.nome())
-        .unwrap_or("?");
+    let porta_nome = app.porta_selecionada.map(|p| p.nome()).unwrap_or("?");
 
     let outer_block = Block::default()
         .title(format!(" Resultados — Porta {} ", porta_nome))
@@ -234,25 +225,32 @@ fn draw_resultados(f: &mut ratatui::Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(5),  // bloco de entradas
-            Constraint::Min(5),     // tabela de iterações
-            Constraint::Length(4),  // bloco de valores finais
-            Constraint::Length(1),  // rodapé
+            Constraint::Length(5), // bloco de entradas
+            Constraint::Min(5),    // tabela de iterações
+            Constraint::Length(4), // bloco de valores finais
+            Constraint::Length(1), // rodapé
         ])
         .split(inner);
 
-    // ── Bloco superior: entradas ─────────────────────────────────────────────
     if let Some(porta) = app.porta_selecionada {
         let amostras = amostras_para(porta);
         let linha1 = format!(
             "  ({}, {}) → {:+.0}    ({}, {}) → {:+.0}",
-            amostras[0].0[0] as i32, amostras[0].0[1] as i32, amostras[0].1,
-            amostras[1].0[0] as i32, amostras[1].0[1] as i32, amostras[1].1,
+            amostras[0].0[0] as i32,
+            amostras[0].0[1] as i32,
+            amostras[0].1,
+            amostras[1].0[0] as i32,
+            amostras[1].0[1] as i32,
+            amostras[1].1,
         );
         let linha2 = format!(
             "  ({}, {}) → {:+.0}    ({}, {}) → {:+.0}",
-            amostras[2].0[0] as i32, amostras[2].0[1] as i32, amostras[2].1,
-            amostras[3].0[0] as i32, amostras[3].0[1] as i32, amostras[3].1,
+            amostras[2].0[0] as i32,
+            amostras[2].0[1] as i32,
+            amostras[2].1,
+            amostras[3].0[0] as i32,
+            amostras[3].0[1] as i32,
+            amostras[3].1,
         );
         let entradas_text = vec![
             Line::from(Span::styled(
@@ -268,16 +266,13 @@ fn draw_resultados(f: &mut ratatui::Frame, app: &mut App) {
         f.render_widget(entradas, chunks[0]);
     }
 
-    // ── Bloco central: tabela de iterações ───────────────────────────────────
-    let header_cells = ["Época", "w1", "w2", "bias", "Erros"]
-        .iter()
-        .map(|h| {
-            Cell::from(*h).style(
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            )
-        });
+    let header_cells = ["Época", "w1", "w2", "bias", "Erros"].iter().map(|h| {
+        Cell::from(*h).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+    });
     let header = Row::new(header_cells).height(1).bottom_margin(0);
 
     let rows: Vec<Row> = app
@@ -315,7 +310,6 @@ fn draw_resultados(f: &mut ratatui::Frame, app: &mut App) {
 
     f.render_stateful_widget(tabela, chunks[1], &mut app.table_state);
 
-    // ── Bloco inferior: valores finais ───────────────────────────────────────
     let linha_status = if app.convergiu {
         let epocas = app.historico.len();
         format!("  Convergiu em {} época(s).", epocas)
@@ -347,11 +341,13 @@ fn draw_resultados(f: &mut ratatui::Frame, app: &mut App) {
         vec![Line::from("  Sem dados.")]
     };
 
-    let finais = Paragraph::new(finais_text)
-        .block(Block::default().borders(Borders::ALL).title(" Resultado Final "));
+    let finais = Paragraph::new(finais_text).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Resultado Final "),
+    );
     f.render_widget(finais, chunks[2]);
 
-    // ── Rodapé ───────────────────────────────────────────────────────────────
     let rodape = Paragraph::new("  [↑↓] Scroll   [b] Voltar   [q] Sair")
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(rodape, chunks[3]);
