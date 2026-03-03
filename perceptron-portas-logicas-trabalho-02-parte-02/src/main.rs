@@ -29,6 +29,7 @@ const PORTAS: [PortaLogica; 5] = [
 
 enum Estado {
     Menu,
+    ConfigInput,
     Resultados,
 }
 
@@ -36,10 +37,15 @@ struct App {
     estado: Estado,
     cursor: usize,
     porta_selecionada: Option<PortaLogica>,
+    porta_pendente: Option<PortaLogica>,
     historico: Vec<IteracaoTreino>,
     table_state: TableState,
     scroll: usize,
     convergiu: bool,
+    // campos de configuração
+    input_taxa: String,
+    input_epocas: String,
+    campo_ativo: usize, // 0 = taxa, 1 = epocas
 }
 
 impl App {
@@ -48,19 +54,23 @@ impl App {
             estado: Estado::Menu,
             cursor: 0,
             porta_selecionada: None,
+            porta_pendente: None,
             historico: Vec::new(),
             table_state: TableState::default(),
             scroll: 0,
             convergiu: false,
+            input_taxa: "0.1".to_string(),
+            input_epocas: "100".to_string(),
+            campo_ativo: 0,
         }
     }
 
-    fn treinar_porta(&mut self, porta: PortaLogica) {
+    fn treinar_porta(&mut self, porta: PortaLogica, taxa: f64, max_epocas: usize) {
         let amostras = amostras_para(porta);
         let config = ConfigPerceptron {
             num_entradas: 2,
-            taxa_aprendizagem: 0.1,
-            max_epocas: 100,
+            taxa_aprendizagem: taxa,
+            max_epocas,
             bias_inicial: 0.3256,
         };
         let mut p = Perceptron::new(config);
@@ -105,6 +115,7 @@ fn main() -> io::Result<()> {
     loop {
         terminal.draw(|f| match app.estado {
             Estado::Menu => draw_menu(f, &app),
+            Estado::ConfigInput => draw_config_input(f, &app),
             Estado::Resultados => draw_resultados(f, &mut app),
         })?;
 
@@ -127,8 +138,45 @@ fn main() -> io::Result<()> {
                             }
                         }
                         KeyCode::Enter => {
-                            let porta = PORTAS[app.cursor];
-                            app.treinar_porta(porta);
+                            app.porta_pendente = Some(PORTAS[app.cursor]);
+                            app.input_taxa = "0.1".to_string();
+                            app.input_epocas = "100".to_string();
+                            app.campo_ativo = 0;
+                            app.estado = Estado::ConfigInput;
+                        }
+                        _ => {}
+                    },
+                    Estado::ConfigInput => match key.code {
+                        KeyCode::Char('q') => break,
+                        KeyCode::Esc | KeyCode::Char('b') => {
+                            app.estado = Estado::Menu;
+                        }
+                        KeyCode::Tab | KeyCode::Down => {
+                            app.campo_ativo = (app.campo_ativo + 1) % 2;
+                        }
+                        KeyCode::Up => {
+                            app.campo_ativo = (app.campo_ativo + 1) % 2;
+                        }
+                        KeyCode::Backspace => {
+                            if app.campo_ativo == 0 {
+                                app.input_taxa.pop();
+                            } else {
+                                app.input_epocas.pop();
+                            }
+                        }
+                        KeyCode::Char(c) => {
+                            if app.campo_ativo == 0 && (c.is_ascii_digit() || c == '.') {
+                                app.input_taxa.push(c);
+                            } else if app.campo_ativo == 1 && c.is_ascii_digit() {
+                                app.input_epocas.push(c);
+                            }
+                        }
+                        KeyCode::Enter => {
+                            let taxa = app.input_taxa.parse::<f64>().unwrap_or(0.1);
+                            let epocas = app.input_epocas.parse::<usize>().unwrap_or(100);
+                            if let Some(porta) = app.porta_pendente {
+                                app.treinar_porta(porta, taxa, epocas);
+                            }
                         }
                         _ => {}
                     },
@@ -204,6 +252,53 @@ fn draw_menu(f: &mut ratatui::Frame, app: &App) {
     f.render_widget(lista, chunks[2]);
 
     let rodape = Paragraph::new("  [↑↓] Navegar   [Enter] Treinar   [q] Sair")
+        .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(rodape, chunks[4]);
+}
+
+fn draw_config_input(f: &mut ratatui::Frame, app: &App) {
+    let area = f.area();
+
+    let porta_nome = app.porta_pendente.map(|p| p.nome()).unwrap_or("?");
+
+    let outer_block = Block::default()
+        .title(format!(" Configuração — Porta {} ", porta_nome))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let inner = outer_block.inner(area);
+    f.render_widget(outer_block, area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints([
+            Constraint::Length(3), // campo taxa
+            Constraint::Length(1), // espaço
+            Constraint::Length(3), // campo epocas
+            Constraint::Min(0),    // espaço restante
+            Constraint::Length(1), // rodapé
+        ])
+        .split(inner);
+
+    let estilo_ativo = Style::default().fg(Color::Green).add_modifier(Modifier::BOLD);
+    let estilo_inativo = Style::default().fg(Color::White);
+
+    let taxa_block = Block::default()
+        .title(" Taxa de aprendizagem ")
+        .borders(Borders::ALL)
+        .border_style(if app.campo_ativo == 0 { estilo_ativo } else { estilo_inativo });
+    let taxa_text = Paragraph::new(format!(" {}", app.input_taxa)).block(taxa_block);
+    f.render_widget(taxa_text, chunks[0]);
+
+    let epocas_block = Block::default()
+        .title(" Máx. épocas ")
+        .borders(Borders::ALL)
+        .border_style(if app.campo_ativo == 1 { estilo_ativo } else { estilo_inativo });
+    let epocas_text = Paragraph::new(format!(" {}", app.input_epocas)).block(epocas_block);
+    f.render_widget(epocas_text, chunks[2]);
+
+    let rodape = Paragraph::new("  [Tab/↑↓] Alternar campo   [Enter] Treinar   [b/Esc] Voltar   [q] Sair")
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(rodape, chunks[4]);
 }
