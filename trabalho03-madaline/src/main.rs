@@ -284,7 +284,7 @@ fn render_resultados(app: &App, f: &mut Frame) {
 
     // Resumo
     let epocas = app.historico_treino.len();
-    let erros_finais = app.historico_treino.last().map(|e| e.erros).unwrap_or(0);
+    let erro_final = app.historico_treino.last().map(|e| e.erro).unwrap_or(0.0);
 
     let resumo_style = Style::default().fg(Color::White);
     let resumo = Paragraph::new(vec![
@@ -296,10 +296,10 @@ fn render_resultados(app: &App, f: &mut Frame) {
             ),
         ]),
         Line::from(vec![
-            Span::styled("  Erros na última época: ", resumo_style),
+            Span::styled("  Erro na última época: ", resumo_style),
             Span::styled(
-                format!("{}", erros_finais),
-                Style::default().fg(if erros_finais == 0 { Color::Green } else { Color::Red })
+                format!("{:.6}", erro_final),
+                Style::default().fg(if erro_final <= 0.01 { Color::Green } else { Color::Red })
                     .add_modifier(Modifier::BOLD),
             ),
         ]),
@@ -323,9 +323,9 @@ fn render_resultados(app: &App, f: &mut Frame) {
         let linhas: Vec<Line> = app.historico_treino[inicio..]
             .iter()
             .map(|e| {
-                let cor = if e.erros == 0 { Color::Green } else { Color::White };
+                let cor = if e.erro <= 0.01 { Color::Green } else { Color::White };
                 Line::from(Span::styled(
-                    format!("  Época {:>4}  |  erros: {:>3}", e.epoca, e.erros),
+                    format!("  Época {:>4}  |  erro: {:>10.6}", e.epoca, e.erro),
                     Style::default().fg(cor),
                 ))
             })
@@ -356,10 +356,10 @@ fn render_desenhando(app: &mut App, f: &mut Frame) {
     let inner = bloco_externo.inner(area);
     f.render_widget(bloco_externo, area);
 
-    // Divide: grid à esquerda (largura fixa = 7*2 + 2 bordas = 16), info à direita
+    // Grid ocupa 45% da tela, info o restante
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(16), Constraint::Fill(1)])
+        .constraints([Constraint::Percentage(45), Constraint::Fill(1)])
         .split(inner);
 
     render_grid(app, f, chunks[0]);
@@ -367,14 +367,28 @@ fn render_desenhando(app: &mut App, f: &mut Frame) {
 }
 
 fn render_grid(app: &mut App, f: &mut Frame, area: Rect) {
+    // Tamanho exato do grid: 7 cols × 2 chars + 2 bordas = 16, 9 rows × 1 linha + 2 bordas = 11
+    let grid_w = 7u16 * 2 + 2;
+    let grid_h = 9u16 * 1 + 2;
+
+    // Centraliza o bloco dentro da área disponível
+    let h_margin = area.width.saturating_sub(grid_w) / 2;
+    let v_margin = area.height.saturating_sub(grid_h) / 2;
+    let area = Rect {
+        x: area.x + h_margin,
+        y: area.y + v_margin,
+        width: grid_w.min(area.width),
+        height: grid_h.min(area.height),
+    };
+
     let bloco = Block::default()
         .title(" Grid 7×9 ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Blue));
+        .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
 
     let inner = bloco.inner(area);
 
-    // Salva a posição do grid interno para mapear cliques do mouse
+    // Salva a posição do grid externo para mapear cliques do mouse
     app.grid_rect = Some(area);
 
     f.render_widget(bloco, area);

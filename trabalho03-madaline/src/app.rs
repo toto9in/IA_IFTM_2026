@@ -55,9 +55,10 @@ impl App {
 
     pub fn treinar(&mut self) {
         let amostras = gerar_amostras(4);
-        let mut m = Madaline::new(63, 26, 0.01, 500);
+        let mut m = Madaline::new(63, 26, 0.01, 500, 0.01);
+        let errotolerado = m.errotolerado;
         let historico = m.treinar(&amostras);
-        self.convergiu = historico.last().map(|e| e.erros == 0).unwrap_or(false);
+        self.convergiu = historico.last().map(|e| e.erro <= errotolerado).unwrap_or(false);
         self.historico_treino = historico;
         self.madaline = Some(m);
         self.estado = Estado::Resultados;
