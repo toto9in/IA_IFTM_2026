@@ -433,7 +433,7 @@ fn render_info_panel(app: &App, f: &mut Frame, area: Rect) {
 
     // Resultado da predição
     let pred_linhas: Vec<Line> = match app.predicao {
-        Some((idx, net)) => {
+        Some((idx, soma)) => {
             let letra = alphabet::LETRAS[idx].0;
             vec![
                 Line::from(Span::styled(
@@ -449,10 +449,10 @@ fn render_info_panel(app: &App, f: &mut Frame, area: Rect) {
                 )),
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled(" Net: ", Style::default().fg(Color::Gray)),
+                    Span::styled(" Ativação: ", Style::default().fg(Color::Gray)),
                     Span::styled(
-                        format!("{:+.3}", net),
-                        Style::default().fg(if net > 0.0 { Color::Green } else { Color::Red }),
+                        format!("{:+.3}", soma),
+                        Style::default().fg(if soma > 0.0 { Color::Green } else { Color::Red }),
                     ),
                 ]),
                 Line::from(""),

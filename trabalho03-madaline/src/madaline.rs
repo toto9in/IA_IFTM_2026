@@ -18,20 +18,24 @@ impl Adaline {
         Self { pesos, bias }
     }
 
-    fn net(&self, x: &[f64]) -> f64 {
-        let mut net = self.bias;
-        for (w, &xi) in self.pesos.iter().zip(x.iter()) {
-            net += w * xi;
+    fn degrau_bipolar(soma: f64) -> f64 {
+        if soma >= 0.0 { 1.0 } else { -1.0 }
+    }
+
+    fn soma(&self, x: &[f64]) -> f64 {
+        let mut soma = self.bias;
+        for i in 0..self.pesos.len() {
+            soma += self.pesos[i] * x[i];
         }
-        net
+        soma
     }
 
     fn atualizar(&mut self, x: &[f64], alvo: f64, eta: f64) {
-        let net = self.net(x);
-        let y = if net >= 0.0 { 1.0 } else { -1.0 };
+        let soma = self.soma(x);
+        let y = Adaline::degrau_bipolar(soma);
         let delta = alvo - y;
-        for (w, &xi) in self.pesos.iter_mut().zip(x.iter()) {
-            *w += eta * delta * xi;
+        for i in 0..self.pesos.len() {
+            self.pesos[i] += eta * delta * x[i];
         }
         self.bias += eta * delta;
     }
@@ -60,13 +64,14 @@ impl Madaline {
         }
     }
 
-    /// Retorna (índice da classe, net do vencedor)
+    /// Retorna (índice da classe, soma do vencedor)
     pub fn prever(&self, x: &[f64]) -> (usize, f64) {
-        let nets: Vec<f64> = self.adalines.iter().map(|a| a.net(x)).collect();
-        nets.iter()
+        let somas: Vec<f64> = self.adalines.iter().map(|a| a.soma(x)).collect();
+        somas
+            .iter()
             .enumerate()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .map(|(i, &net)| (i, net))
+            .map(|(i, &soma)| (i, soma))
             .unwrap_or((0, 0.0))
     }
 
@@ -78,16 +83,16 @@ impl Madaline {
             let mut erro = 0.0f64;
 
             for (x, classe) in amostras {
-                // Forward: net de cada saída
-                let nets: Vec<f64> = self.adalines.iter().map(|a| a.net(x)).collect();
+                // Forward: soma de cada saída
+                let somas: Vec<f64> = self.adalines.iter().map(|a| a.soma(x)).collect();
 
                 // Binarizar (limiar = 0.0)
-                let y: Vec<f64> = nets
+                let y: Vec<f64> = somas
                     .iter()
-                    .map(|&net| if net >= 0.0 { 1.0 } else { -1.0 })
+                    .map(|&soma| Adaline::degrau_bipolar(soma))
                     .collect();
 
-                // MSE: 0.5 * (target - y)^2 para cada saída
+                // EQM: 0.5 * (alvo - y)^2 para cada saída
                 for j in 0..n_classes {
                     let alvo = if j == *classe { 1.0 } else { -1.0 };
                     erro += 0.5 * (alvo - y[j]).powi(2);

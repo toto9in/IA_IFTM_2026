@@ -13,22 +13,19 @@ pub struct App {
     pub estado: Estado,
     pub cursor: usize,
 
-    // Rede neural
     pub madaline: Option<Madaline>,
     pub historico_treino: Vec<EpocaInfo>,
     pub convergiu: bool,
 
-    // Grid de desenho (9 linhas × 7 colunas)
     pub grid: [[bool; 7]; 9],
     pub predicao: Option<(usize, f64)>,
 
-    // Posição do grid no terminal (para mapear cliques do mouse)
     pub grid_rect: Option<Rect>,
-    // Célula sob o cursor do mouse
+
     pub hover: Option<(usize, usize)>,
-    // Se o botão esquerdo está pressionado (para drag)
+
     pub mouse_down: bool,
-    // Valor que está sendo pintado no drag (true = ligar, false = desligar)
+
     pub paint_value: bool,
 }
 
@@ -58,7 +55,10 @@ impl App {
         let mut m = Madaline::new(63, 26, 0.01, 500, 0.01);
         let errotolerado = m.errotolerado;
         let historico = m.treinar(&amostras);
-        self.convergiu = historico.last().map(|e| e.erro <= errotolerado).unwrap_or(false);
+        self.convergiu = historico
+            .last()
+            .map(|e| e.erro <= errotolerado)
+            .unwrap_or(false);
         self.historico_treino = historico;
         self.madaline = Some(m);
         self.estado = Estado::Resultados;
@@ -71,7 +71,9 @@ impl App {
 
     pub fn atualizar_predicao(&mut self) {
         if let Some(m) = &self.madaline {
-            let entradas: Vec<f64> = self.grid.iter()
+            let entradas: Vec<f64> = self
+                .grid
+                .iter()
                 .flatten()
                 .map(|&b| if b { 1.0 } else { -1.0 })
                 .collect();
@@ -97,7 +99,6 @@ impl App {
         self.predicao.map(|(idx, _)| LETRAS[idx].0)
     }
 
-    /// Carrega o bitmap de uma letra no grid (para demonstração)
     #[allow(dead_code)]
     pub fn carregar_letra(&mut self, idx: usize) {
         let bitmap = to_bipolar(&LETRAS[idx].1);
@@ -121,7 +122,6 @@ impl App {
         let rel_col = col - inner_x;
         let rel_row = row - inner_y;
 
-        // Cada célula ocupa 2 caracteres de largura e 1 de altura
         let cell_col = (rel_col / 2) as usize;
         let cell_row = rel_row as usize;
 
