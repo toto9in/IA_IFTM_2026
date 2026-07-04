@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caixeiro Viajante — AG · Triângulo Mineiro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #182030;
+    --panel-2: #202b3d;
+    --border: #2c3a52;
+    --text: #e6ecf5;
+    --muted: #93a2bc;
+    --accent: #5e9bff;
+    --accent-2: #33d9a6;
+    --danger: #ff6b6b;
+    --city: #7fb3ff;
+    --origem: #33d9a6;
+    --destino: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 0;
+    height: calc(100vh - 66px);
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+  }
+  .controls {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 18px;
+    overflow-y: auto;
+  }
+  .main {
+    padding: 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .field label .val { color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type="number"], select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .btn-run { background: var(--accent); color: #06101f; }
+  .btn-run:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-stop { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 18px 0 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stat {
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .route-text {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+    word-break: break-word;
+  }
+  .route-text .arrow { color: var(--muted); margin: 0 4px; }
+  .route-text .warn { color: var(--danger); }
+  #chart { display: block; width: 100%; }
+  .map-wrap { background: var(--panel-2); border-radius: 8px; }
+  .legend { display: flex; gap: 18px; margin-top: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .note { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  /* rótulos sobre o mapa Leaflet */
+  .ordem-visita {
+    background: var(--accent);
+    color: #06101f;
+    font-weight: 700;
+    font-size: 11px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 2px #0f1420;
+  }
+  .leaflet-tooltip.rotulo-cidade {
+    background: rgba(15,20,32,0.85);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    box-shadow: none;
+  }
+  .leaflet-tooltip.rotulo-cidade::before { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚚 Caixeiro Viajante por Algoritmo Genético</h1>
+  <p>Roteamento de caminhão no Triângulo Mineiro — origem fixa em Uberaba · IA · IFTM 2026</p>
+</header>
+
+<div class="layout">
+  <!-- ============ CONTROLES ============ -->
+  <aside class="controls">
+    <div class="section-title">Rota</div>
+    <div class="field">
+      <label>Origem (fixa)</label>
+      <input type="text" value="Uberaba" disabled style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;color:var(--muted);">
+    </div>
+    <div class="field">
+      <label for="destino">Destino final</label>
+      <select id="destino"></select>
+    </div>
+
+    <div class="section-title">Parâmetros do AG</div>
+    <div class="field">
+      <label for="pop">Tamanho da população <span class="val" id="pop-v">100</span></label>
+      <input type="range" id="pop" min="10" max="500" step="10" value="100">
+    </div>
+    <div class="field">
+      <label for="ger">Número de gerações <span class="val" id="ger-v">300</span></label>
+      <input type="range" id="ger" min="10" max="2000" step="10" value="300">
+    </div>
+    <div class="field">
+      <label for="txc">Taxa de cruzamento <span class="val" id="txc-v">0.90</span></label>
+      <input type="range" id="txc" min="0" max="1" step="0.01" value="0.90">
+    </div>
+    <div class="field">
+      <label for="txm">Taxa de mutação <span class="val" id="txm-v">0.10</span></label>
+      <input type="range" id="txm" min="0" max="1" step="0.01" value="0.10">
+    </div>
+    <div class="field">
+      <label for="elit">Tamanho do elitismo <span class="val" id="elit-v">2</span></label>
+      <input type="range" id="elit" min="0" max="20" step="1" value="2">
+    </div>
+    <div class="field">
+      <label for="torn">Tamanho do torneio <span class="val" id="torn-v">3</span></label>
+      <input type="range" id="torn" min="2" max="10" step="1" value="3">
+    </div>
+    <div class="field">
+      <label for="vel">Velocidade da animação <span class="val" id="vel-v">rápida</span></label>
+      <input type="range" id="vel" min="0" max="120" step="5" value="0">
+    </div>
+
+    <button class="btn btn-run" id="run">▶ Rodar AG</button>
+    <button class="btn btn-stop" id="stop" disabled>■ Parar</button>
+
+    <p class="note">
+      Trechos sem estrada direta na tabela (—) são resolvidos por <strong>Floyd-Warshall</strong>:
+      a distância vira o menor caminho passando por cidades intermediárias.
+      Cruzamento <strong>OX</strong> (sem cidades repetidas) · mutação por <strong>troca</strong> · seleção por <strong>torneio</strong>.
+    </p>
+  </aside>
+
+  <!-- ============ PRINCIPAL ============ -->
+  <main class="main">
+    <div class="card stats">
+      <div class="stat"><div class="num" id="s-dist">—</div><div class="lbl">Melhor distância (km)</div></div>
+      <div class="stat"><div class="num" id="s-ger">0</div><div class="lbl">Geração atual</div></div>
+      <div class="stat"><div class="num" id="s-melhorger">—</div><div class="lbl">Achada na geração</div></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0">Mapa da melhor rota</div>
+      <div id="map" style="height:520px;border-radius:8px;overflow:hidden;background:#202b3d;z-index:0;"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--origem)"></i> Origem (Uberaba)</span>
+        <span><i class="dot" style="background:var(--destino)"></i> Destino final</span>
+        <span><i class="dot" style="background:var(--city)"></i> Cidade</span>
+        <span><i style="display:inline-block;width:16px;height:0;border-top:3px solid var(--accent)"></i> Ordem (reta)</span>
+        <span><i style="display:inline-block;width:16px;height:0;border-top:3px solid var(--accent-2)"></i> Estradas reais (OSRM)</span>
+      </div>
+      <div class="route-text" id="route-text">Configure os parâmetros e clique em <strong>Rodar AG</strong>.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0">Evolução da distância (melhor por geração)</div>
+      <div class="map-wrap"><svg id="chart" viewBox="0 0 800 240"></svg></div>
+    </div>
+  </main>
+</div>
+
+<script src="algoritmo-genetico.js"></script>
+</body>
+</html>
